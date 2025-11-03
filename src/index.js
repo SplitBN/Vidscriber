@@ -1,5 +1,7 @@
 import {FfmpegExtractor} from "./extractor.js";
 import {DownloadUtil} from "./download-utils.js";
+import {Pipeline} from "./pipeline.js";
+import {SonioxSTTTranscriber} from "./soniox-transcriber.js";
 
 
 // https://files.catbox.moe/r1ijks.mp4 bahaa bicep
@@ -8,21 +10,33 @@ import {DownloadUtil} from "./download-utils.js";
 // https://files.catbox.moe/3ck3s5.mov Hookah
 // https://storage.googleapis.com/test-uploads-1/DealCameraMan.mp4 Good deal
 
+// == Input ==
 const uri = "https://storage.googleapis.com/test-uploads-1/DealCameraMan.mp4";
+const context = "A video in hebrew about how to close a good deal"
 
+
+
+// == Pipeline ==
+const RECOMPUTE_FROM = "stt";
+const STEP_ORDER = ["download", "extract", "stt"];
+const pipe = new Pipeline("./.cache", RECOMPUTE_FROM, STEP_ORDER);
+await pipe.init();
+
+// == Services ==
 const downloadUtils = new DownloadUtil({ tmpDir: "./temp-download" })
 const extractor = new FfmpegExtractor({ tmpDir: "./temp-extract" });
+const stt = new SonioxSTTTranscriber();
 
-// Download video
-console.time("Download")
-const localPath = await downloadUtils.getLocalPath(uri);
-console.timeEnd("Download")
+// == Steps ==
+const localPath = await pipe.call("download", async () => await downloadUtils.getLocalPath(uri));
 
-// Extract and normalize audio and video for transcription
-console.time("Extraction")
-const extracted = await extractor.extract(localPath);
-console.timeEnd("Extraction")
+const { audioPath, videoPath } = await pipe.call("extract", async () => await extractor.extract(localPath));
 
-console.log(JSON.stringify(extracted, null, 2))
+const speech = await pipe.call("stt", async () => await stt.transcribe(audioPath, {
+    enable_language_identification: true,
+    enable_speaker_diarization: true,
+    context: {text: context}
+}));
 
+pipe.summary();
 
