@@ -1,23 +1,21 @@
 import {FfmpegExtractor} from "./extractor.js";
-import {DownloadUtil} from "./download-utils.js";
+import {DownloadUtil} from "./downloader.js";
 import {Pipeline} from "./pipeline.js";
-import {SonioxSTTTranscriber} from "./soniox-transcriber.js";
-
+import {SonioxSTTTranscriber} from "./soniox-stt.js";
 
 // https://files.catbox.moe/r1ijks.mp4 bahaa bicep
 // https://files.catbox.moe/dxh2op.mp4 zest
 // https://files.catbox.moe/ops2f9.mp4 Random buff dude 1
-// https://files.catbox.moe/3ck3s5.mov Hookah
+// https://files.catbox.moe/8zdpox.mp4 trimmed buff dude
+// D:\VideoMagics\long-zonot.mp4 long buff dude
 // https://storage.googleapis.com/test-uploads-1/DealCameraMan.mp4 Good deal
 
 // == Input ==
-const uri = "https://storage.googleapis.com/test-uploads-1/DealCameraMan.mp4";
-const context = "A video in hebrew about how to close a good deal"
-
-
+const uri = "https://files.catbox.moe/dxh2op.mp4";
+const context = ""
 
 // == Pipeline ==
-const RECOMPUTE_FROM = "stt";
+const RECOMPUTE_FROM = "download";
 const STEP_ORDER = ["download", "extract", "stt"];
 const pipe = new Pipeline("./.cache", RECOMPUTE_FROM, STEP_ORDER);
 await pipe.init();

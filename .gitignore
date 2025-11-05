@@ -4,6 +4,7 @@ node_modules/
 /temp-download
 /temp-extract
 .env
+keyfile.json
 
 # Default ignored files
 /shelf/
