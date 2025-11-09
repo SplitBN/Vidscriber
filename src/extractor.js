@@ -21,7 +21,7 @@ export class FfmpegExtractor {
 
     async extract(inputUrl) {
         const audioPath = `${this.tmpDir}/audio.flac`;
-        const proxyPath = `${this.tmpDir}/proxy.mp4`;
+        const videoPath = `${this.tmpDir}/video.mp4`;
 
         await Promise.all([
             new Promise((resolve, reject) => {
@@ -51,10 +51,10 @@ export class FfmpegExtractor {
                     ])
                     .on("error", reject)
                     .on("end", resolve)
-                    .save(proxyPath);
+                    .save(videoPath);
             })
         ]);
 
-        return { audioPath, proxyPath };
+        return { audioPath, videoPath };
     }
 }

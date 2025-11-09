@@ -2,12 +2,12 @@ import "dotenv/config";
 import fs from "node:fs";
 import axios from "axios";
 import FormData from "form-data";
-import {getLogger} from "./logger.js";
+import { getLogger } from "./logger.js";
 
 const log = getLogger("SonioxSTT");
 const API  = "https://api.soniox.com/v1";
 
-export class SonioxSTTTranscriber {
+export class SonioxSTT {
 
     constructor(opts = {}) {
         this.apiKey = opts.apiKey || process.env.SONIOX_API_KEY;
@@ -163,6 +163,9 @@ export class SonioxSTTTranscriber {
         }
 
         formatted.words.sort((a, b) => a.start_ms - b.start_ms);
+
+        // TODO should change this into segments with words being in each segment's metadata
+
         return formatted;
     }
 

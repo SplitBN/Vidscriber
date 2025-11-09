@@ -4,7 +4,7 @@ import winston from "winston";
 export const nowNs = () => process.hrtime.bigint();
 export const nsToMs = (ns) => Number(ns) / 1e6;
 
-const fmtSystem = (s) => (s ? `(\x1b[90m\x1b[4m${s}\x1b[0m) ` : "");
+const fmtSystem = (s) => (s ? `(\x1b[2;37;4m${s}\x1b[0m) ` : "");
 
 const LEVEL_COLORS = {
     ERROR: "\x1b[31m",
