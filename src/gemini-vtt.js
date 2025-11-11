@@ -11,9 +11,9 @@ const log = getLogger("GeminiVTT");
 
 const PHASE_1_INSTRUCTIONS = `
 ROLE  
-You are a video observer.  
+You are a video transcriber.  
 Your job is to describe what happens in the video — both visually and audibly — in structured JSON form.  
-Do not make editing decisions. Do not filter. Do not prioritize.  
+Do not filter. Do not prioritize.  
 Just report what’s visible and audible, so a Director AI can decide what to use later.
 
 ---
@@ -82,41 +82,12 @@ Use moments for:
 
 ---
 
-OUTPUT FORMAT EXAMPLE
-
-{
-  'events': [
-    {
-      'start_ms': 1000,
-      'end_ms': 1800,
-      'action': 'points at object',
-      'detail': 'with left hand',
-      'peak_ms': 1400,
-      'speaker': 'host'
-    }
-  ],
-  'moments': [
-    {
-      'start_ms': 8200,
-      'end_ms': 8700,
-      'label': 'Cameraman speaks',
-      'detail': 'Tells speaker to try again',
-      'modality': 'audio',
-      'speaker': 'cameraman',
-      'importance': 'should-cut'
-    }
-  ]
-}
-
----
-
 VALIDATION RULES
 
 - Output only valid JSON — no comments, no prose
-- All timestamps are integer milliseconds
+- All timestamps are integer milliseconds - aim for ~100ms precision
 - Do not include empty or undefined fields
 - Do not use 'importance' unless it is 'should-cut'
-- Do not include quotes or fabricated dialogue
 - Order all items chronologically by start_ms
 `;
 const PHASE_2_INSTRUCTIONS = ``;
@@ -132,6 +103,8 @@ export class GeminiVTT {
         this.filePrefix = process.env.GOOGLE_CLOUD_BUCKET_FILE_PREFIX;
 
         this.vertex = new VertexAI({ project: this.project, location: this.location });
+        this.model = this.vertex.getGenerativeModel({ model: "gemini-2.5-flash" });
+
         this.storage = new Storage({ projectId: this.project });
         this.bucket = this.storage.bucket(this.bucketID);
 
@@ -152,44 +125,59 @@ export class GeminiVTT {
         const gcsUri = `gs://${this.bucket.name}/${videoFile.name}`;
         log.debug(`gcsUri: ${gcsUri}`);
 
-
-        const model = this.vertex.getGenerativeModel({ model: "gemini-2.5-flash" });
-
-        // TODO test this ingestion thing to make sure it works, probably make a video where output is obvious
+        // TODO wrap up schema (looks good), load with url like [https://your-domain/schemas/vtt.hierarchy.v1.json]
+        // TODO make the phases
 
         const phase1Resp = await log.infoSpan("Coarse Analysis",
-// Corrected request: videoMetadata attached to the same part as fileData
-            await model.generateContent({
-                contents: [
-                    {
-                        role: "user",
-                        parts: [
-                            {
-                                fileData: { fileUri: gcsUri, mimeType: mime },
-                                videoMetadata: { fps: 10, startOffset: "10s", endOffset: "20s" }
-                            }
-                        ]
-                    }
-                ],
-                systemInstruction: PHASE_1_INSTRUCTIONS,
-                generationConfig: {
-                    responseMimeType: "application/json",
-                    temperature: 0,
-                    candidateCount: 1,
-                    mediaResolution: "MEDIA_RESOLUTION_MEDIUM" // LOW = 66 tokens  |  MEDIUM = 258 tokens
-                    // optional: maxOutputTokens: 512
-                }
-            }));
+            this._callGemini({
+                instructions: PHASE_1_INSTRUCTIONS,
+                resolution: "LOW",
+                fps: 10,
+                gcsUri,
+                mime
+            })
+        );
 
         log.info(`phase1Resp: ${JSON.stringify(phase1Resp, null, 2)}`);
 
-        log.info
 
         return { test: "test", version: "asd" };
     }
 
     async _awaitReady() {
         await this._readyPromise;
+    }
+
+    async _callGemini(opts) {
+        const {
+            instructions,
+            resolution,
+            fps,
+            startOffset,
+            endOffset,
+            gcsUri,
+            mime
+        } = opts;
+        return await this.model.generateContent({
+            contents: [
+                {
+                    role: "user",
+                    parts: [
+                        {
+                            fileData: { fileUri: gcsUri, mimeType: mime },
+                            videoMetadata: { fps: fps, startOffset: startOffset, endOffset: endOffset }
+                        }
+                    ]
+                }
+            ],
+            systemInstruction: instructions,
+            generationConfig: {
+                responseMimeType: "application/json",
+                temperature: 0,
+                candidateCount: 1,
+                mediaResolution: "MEDIA_RESOLUTION_" + resolution // LOW = 66 tokens  |  MEDIUM = 258 tokens
+            }
+        })
     }
 
     /**
@@ -247,3 +235,103 @@ export class GeminiVTT {
         return info?.mime || "application/octet-stream";
     }
 }
+
+const VTT_HIERARCHY_V1_SCHEMA = {
+    $schema: "https://json-schema.org/draft/2020-12/schema",
+    $id: "vtt.hierarchy.v1.min.json",
+    title: "Hierarchical",
+    type: "object",
+    required: ["version", "summary", "timeline"],
+    additionalProperties: true,
+
+    properties: {
+        version: { const: "vtt.hierarchy.v1" },
+        summary: { type: "string" },
+
+        timeline: {
+            type: "array",
+            items: { $ref: "#/$defs/node" }
+        }
+    },
+
+    $defs: {
+        base: {
+            type: "object",
+            required: ["id", "kind", "label"],
+            additionalProperties: true,
+            properties: {
+                id: { type: "string" },
+                kind: { enum: ["state", "span", "moment"] },
+                label: { type: "string" },
+                description: { type: "string" },
+                conf: { type: "number", minimum: 0, maximum: 1 },
+                entityIds: { type: "array", items: { type: "string" } },
+                bbox: {
+                    type: "array",
+                    items: { type: "number", minimum: 0, maximum: 1 },
+                    minItems: 4,
+                    maxItems: 4
+                },
+                text: { type: "string" },
+
+                tags: { type: "array", items: { type: "string" } },
+                children: {
+                    type: "array",
+                    items: { $ref: "#/$defs/node" }
+                }
+            }
+        },
+
+        state: {
+            allOf: [
+                { $ref: "#/$defs/base" },
+                {
+                    type: "object",
+                    required: ["start_ms", "end_ms"],
+                    properties: {
+                        kind: { const: "state" },
+                        start_ms: { type: "integer", minimum: 0 },
+                        end_ms: { type: "integer", minimum: 1 }
+                    }
+                }
+            ]
+        },
+
+        span: {
+            allOf: [
+                { $ref: "#/$defs/base" },
+                {
+                    type: "object",
+                    required: ["start_ms", "end_ms"],
+                    properties: {
+                        kind: { const: "span" },
+                        start_ms: { type: "integer", minimum: 0 },
+                        end_ms: { type: "integer", minimum: 1 }
+                    }
+                }
+            ]
+        },
+
+        moment: {
+            allOf: [
+                { $ref: "#/$defs/base" },
+                {
+                    type: "object",
+                    required: ["t_ms"],
+                    properties: {
+                        kind: { const: "moment" },
+                        t_ms: { type: "integer", minimum: 0 }
+                    }
+                }
+            ]
+        },
+
+        node: {
+            oneOf: [
+                { $ref: "#/$defs/state" },
+                { $ref: "#/$defs/span" },
+                { $ref: "#/$defs/moment" }
+            ]
+        }
+    }
+};

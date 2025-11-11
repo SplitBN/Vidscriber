@@ -13,7 +13,7 @@ import {GeminiVTT} from "./gemini-vtt.js";
 
 // == Input ==
 // const uri = "D:\\VideoMagics\\raw\\Weight-1.mp4";
-const uri = "https://files.catbox.moe/dxh2op.mp4";
+const uri = "D:\\Downloads\\tanguyfpv).mp4";
 const context = ""
 
 // == Pipeline ==
