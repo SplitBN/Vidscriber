@@ -2,7 +2,7 @@ import {FfmpegExtractor} from "./extractor.js";
 import {DownloadUtil} from "./downloader.js";
 import {Pipeline} from "./pipeline.js";
 import {SonioxSTT} from "./soniox-stt.js";
-import {GeminiVTT} from "./gemini-vtt.js";
+import {GeminiVTT} from "./vtt/gemini-vtt.js";
 
 // https://files.catbox.moe/r1ijks.mp4 bahaa bicep
 // https://files.catbox.moe/dxh2op.mp4 zest
@@ -13,7 +13,7 @@ import {GeminiVTT} from "./gemini-vtt.js";
 
 // == Input ==
 // const uri = "D:\\VideoMagics\\raw\\Weight-1.mp4";
-const uri = "D:\\Downloads\\tanguyfpv).mp4";
+const uri = "https://storage.googleapis.com/test-uploads-1/DealCameraMan.mp4";
 const context = ""
 
 // == Pipeline ==

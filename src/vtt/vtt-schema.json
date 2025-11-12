@@ -1,0 +1,116 @@
+{
+  "title": "Hierarchical VTT v1.0.0",
+  "type": "object",
+  "required": ["version", "summary", "timeline"],
+  "additionalProperties": false,
+
+  "properties": {
+    "version": { "type": "string", "enum": ["vtt.hierarchy.v1"] },
+    "summary": { "type": "string", "description": "A free-text summary of the video, As if you had to explain the video to someone who has never watched it" },
+
+    "timeline": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/node" },
+      "description": "A high accuracy detailed transcription of the video in timeline form, All timestamps are in milliseconds"
+    }
+  },
+
+  "$defs": {
+    "base": {
+      "type": "object",
+      "required": ["kind", "label", "conf", "tags"],
+      "additionalProperties": false,
+      "properties": {
+        "kind": { "type": "string", "enum": ["state", "span", "moment"] },
+        "label": { "type": "string", "description": "A semantic title" },
+        "description": { "type": "string", "description": "A free-text description for details" },
+        "conf": { "type": "number", "minimum": 0, "maximum": 1 },
+        "entityIds": { "type": "array", "items": { "type": "string" }, "description": "A list of entity IDs associated with this node" },
+        "bbox": {
+          "type": "array",
+          "items": { "type": "number", "minimum": 0, "maximum": 1 },
+          "description": "BBox *normalized* coordinates in [x1, y1, x2, y2] format for when visual emphasis is needed",
+          "minItems": 4,
+          "maxItems": 4
+        },
+
+        "tags": { "type": "array", "items": { "type": "string" } },
+        "children": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/node" },
+          "description": "A list of child nodes of sub-event for detailed accuracy, must be of #/$defs/node type"
+        }
+      }
+    },
+
+    "state": {
+      "allOf": [
+        { "$ref": "#/$defs/base" },
+        {
+          "type": "object",
+          "required": ["start_ms", "end_ms"],
+          "properties": {
+            "kind": { "type": "string", "enum": ["state"] },
+            "start_ms": { "type": "integer" },
+            "end_ms": { "type": "integer" },
+            "accurate_processing": {
+              "allOf": [{ "$ref": "#/$defs/accurate_processing" }],
+              "description": "Accurate processing config"
+            }
+          }
+        }
+      ]
+    },
+
+    "span": {
+      "allOf": [
+        { "$ref": "#/$defs/base" },
+        {
+          "type": "object",
+          "required": ["start_ms", "end_ms"],
+          "properties": {
+            "kind": { "type": "string", "enum": ["span"] },
+            "start_ms": { "type": "integer" },
+            "end_ms": { "type": "integer" },
+            "accurate_processing": {
+              "allOf": [{ "$ref": "#/$defs/accurate_processing" }],
+              "description": "Accurate processing config"
+            }
+          }
+        }
+      ]
+    },
+
+    "moment": {
+      "allOf": [
+        { "$ref": "#/$defs/base" },
+        {
+          "type": "object",
+          "required": ["t_ms"],
+          "properties": {
+            "kind": { "type": "string", "enum": ["moment"] },
+            "t_ms": { "type": "integer" }
+          }
+        }
+      ]
+    },
+
+    "node": {
+      "oneOf": [
+        { "$ref": "#/$defs/state" },
+        { "$ref": "#/$defs/span" },
+        { "$ref": "#/$defs/moment" }
+      ]
+    },
+
+    "accurate_processing": {
+      "type": "object",
+      "required": ["needed", "reason"],
+      "additionalProperties": false,
+      "properties": {
+        "needed": { "type": "boolean", "description": "Whether this section should be processed with higher accuracy" },
+        "reason": { "type": "string", "description": "Why this section should be processed with higher accuracy" }
+      }
+    }
+  }
+}
