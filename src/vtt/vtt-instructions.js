@@ -4,7 +4,7 @@ You are ingesting a video at 2 fps and minimal semantic tokens per frame then cr
 Goal:
 - Top-level timeline = coarse segments (1–4s), each representing a meaningful unit.
 - Each top-level segment should use children[] to break down smaller micro-events (pauses, gestures, speaker shifts, subtle reactions, overlaps).
-- Timestamps should have ~100 ms accuracy, Use accurate_processing when confidence is low.
+- Timestamps should have ~100 ms accuracy, Use accurate_processing when confidence is low. NEVER invent timestamps, accuracy is critical.
 
 Node usage:
 - state = sustained speaking / listening / action
@@ -34,8 +34,9 @@ accurate_processing (for processing on 10 fps with high semantic token count per
 
 General Rules:
 - No hallucination; describe only what is directly visible or audible.
-- Timestamps must be sequential, without gaps or overlap.
-- The summary should explain the whole video clearly to someone who hasn't seen it.
+- Timestamps must be sequential, without gaps or overlap and within ~100ms accuracy.
+- Timestamps represent the EXACT start of the event and the EXACT end of it, as if its being edited in a video editor.
+- The summary should explain the video clearly to someone who hasn't seen it.
 - Output must follow OUTPUT_SCHEMA exactly.
 `
 
@@ -79,7 +80,7 @@ Tagging:
 General rules:
 - No hallucination; describe only what is directly visible or audible.
 - Timestamps must be sequential, without gaps or overlaps.
-- The summery is for the WHOLE video, do NOT change it, you may ONLY modify the parts that you have ACCESS to.
+- The summary is for the WHOLE video, you do NOT have access to the whole video so you don't have authority to change it, you may the parts in the summary that you can see in the video.
 - The input transcript you get is for the WHOLE video, you only watch SOME parts of it, so NEVER change parts you cant see.
 - Output must follow OUTPUT_SCHEMA exactly.
 `;

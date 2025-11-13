@@ -1,18 +1,15 @@
 import "dotenv/config";
-import { GoogleGenAI } from '@google/genai';
-import { Storage } from "@google-cloud/storage";
-import { createReadStream } from "node:fs";
-import { createHash } from "node:crypto";
-import { getLogger } from "../misc/logger.js";
-import { fileTypeFromStream } from "file-type";
-import {PHASE_1_INSTRUCTIONS, PHASE_2_INSTRUCTIONS} from "./vtt-instructions.js";
-import vttSchema from './vtt-schema.json' with { type: 'json' };
-import {Ajv} from 'ajv'
+import {GoogleGenAI} from '@google/genai';
+import {Storage} from "@google-cloud/storage";
+import {createReadStream} from "node:fs";
+import {createHash} from "node:crypto";
+import {getLogger} from "../misc/logger.js";
+import {fileTypeFromStream} from "file-type";
+import {STT_INSTRUCTIONS} from "./stt-instructions.js";
 
-const log = getLogger("GeminiVTT");
-const validateVttSchema = new Ajv().compile(vttSchema);
+const log = getLogger("GeminiSTT");
 
-export class GeminiVTT {
+export class GeminiSTT {
 
     constructor(opts = {}) {
 
@@ -38,98 +35,26 @@ export class GeminiVTT {
         })();
     }
 
-    async transcribe(videoPath, opts = {}) {
+    async transcribe(audioPath, opts = {}) {
         await this._awaitReady();
 
-        const { bucketFile: videoFile, mime } = await this._getBucketFile(videoPath); // File that exists and ready to use
+        const { bucketFile: videoFile, mime } = await this._getBucketFile(audioPath); // File that exists and ready to use
         const gcsUri = `gs://${this.bucket.name}/${videoFile.name}`;
         log.debug(`gcsUri: ${gcsUri}`);
 
-        let finalPhase = "phase1";
-
-        // - Call Phase 1
-        const phase1Resp = await log.infoSpan("Coarse Analysis (Phase 1)", this._callGemini({
+        const phase1Resp = await log.infoSpan("STT Analysis", this._callGemini({
             parts: [
                 {
-                    text: `OUTPUT_SCHEMA: ${JSON.stringify(vttSchema)}` // Including schema cuz responseJsonSchema sucks
-                },
-                {
                     fileData: { fileUri: gcsUri, mimeType: mime },
-                    videoMetadata: { fps: 2 }
+                    videoMetadata: { fps: 1 }
                 }
             ],
-            instructions: PHASE_1_INSTRUCTIONS,
+            instructions: STT_INSTRUCTIONS,
             resolution: "LOW"
         }));
         // -
 
-        // Extract from phase 1 api response
-        const phase1 = this._extractFromResp(phase1Resp);
-
-        // Validate Schema
-        this._validateAgainstSchema(phase1);
-
-        // - Extract timestamps for refinement
-        const timestampsToRefine = [];
-
-        const scanNodeForAccurateProcessing = (node) => {
-            if (node.accurate_processing?.needed && node.start_ms && node.end_ms) {
-                timestampsToRefine.push({
-                    start_ms: node.start_ms,
-                    end_ms: node.end_ms,
-                    reason: node.accurate_processing.reason
-                });
-            }
-            if (node.children)
-                for (let child of node.children)
-                    scanNodeForAccurateProcessing(child);
-        }
-
-        for (let node of phase1.transcription?.timeline || [])
-            scanNodeForAccurateProcessing(node);
-        // -
-
-        // Check if Phase 2 is needed TODO add a toggle for this
-        let phase2 = {};
-        if (timestampsToRefine.length > 0) {
-            log.info(`Found ${timestampsToRefine.length} timestamps to refine (Total ${timestampsToRefine.reduce((sum, n) => sum + (n.end_ms - n.start_ms), 0)} ms), Calling refiner (phase 2)`);
-            log.debug("Timestamps to refine: " + timestampsToRefine.map(t => `(${t.start_ms}-${t.end_ms}) [${t.reason}]`).join("  ,  "));
-
-            // - Call Phase 2
-            const parts = [];
-            for (let ts of timestampsToRefine) {
-                const s = `${(Number(ts.start_ms) / 1000).toFixed(1)}s`; // Convert to "10.4s" format
-                const e = `${(Number(ts.end_ms) / 1000).toFixed(1)}s`;
-                parts.push({
-                    fileData: { fileUri: gcsUri, mimeType: mime },
-                    videoMetadata: { fps: 10, startOffset: s, endOffset: e }
-                });
-            }
-
-            const phase2Resp = await log.infoSpan("Refined Analysis (Phase 2)", this._callGemini({
-                parts: [
-                    {
-                        text: `OUTPUT_SCHEMA: ${JSON.stringify(vttSchema)}` // Including schema cuz responseJsonSchema sucks
-                    },
-                    ...parts
-                ],
-                instructions: PHASE_2_INSTRUCTIONS,
-                resolution: "MEDIUM"
-            }));
-
-            // Extract from phase 2 api response
-            phase2 = this._extractFromResp(phase2Resp);
-
-            // Validate Schema
-            this._validateAgainstSchema(phase2);
-            finalPhase = "phase2";
-        }
-        // -
-        else
-            log.info("No timestamps to refine, skipping phase 2");
-
-
-        return { finalPhase: finalPhase, phase1: phase1, phase2: phase2 };
+        return this._extractFromResp(phase1Resp);
     }
 
     async _awaitReady() {

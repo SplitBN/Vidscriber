@@ -78,7 +78,7 @@ export class SonioxSTT {
 
     // Combines tokens into words by checking for spaces at the beginning of end of words
     async _processResponse(resp) {
-        log.debug(`resp: ${JSON.stringify(resp, null, 2)}`);
+        // log.debug(`resp: ${JSON.stringify(resp, null, 2)}`);
 
         const formatted = {};
         formatted.apiInfo = resp.id;
