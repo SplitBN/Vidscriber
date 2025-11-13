@@ -2,7 +2,7 @@ import "dotenv/config";
 import fs from "node:fs";
 import axios from "axios";
 import FormData from "form-data";
-import { getLogger } from "./logger.js";
+import { getLogger } from "../misc/logger.js";
 
 const log = getLogger("SonioxSTT");
 const API  = "https://api.soniox.com/v1";
