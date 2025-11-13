@@ -13,11 +13,11 @@ import {GeminiVTT} from "./vtt/gemini-vtt.js";
 
 // == Input ==
 // const uri = "D:\\VideoMagics\\raw\\Weight-1.mp4";
-const uri = "https://storage.googleapis.com/test-uploads-1/DealCameraMan.mp4";
+const uri = "https://files.catbox.moe/dxh2op.mp4";
 const context = ""
 
 // == Pipeline ==
-const RECOMPUTE_FROM = "vtt";
+const RECOMPUTE_FROM = "download";
 const STEP_ORDER = ["download", "extract", "stt", "vtt"];
 const pipe = new Pipeline("./.cache", RECOMPUTE_FROM, STEP_ORDER);
 await pipe.init();
@@ -35,15 +35,18 @@ const localPath = await pipe.call("download", async () =>
 const { audioPath, videoPath } = await pipe.call("extract", async () =>
     await extractor.extract(localPath));
 
-// const speech = await pipe.call("stt", async () =>
-//     await stt.transcribe(audioPath, {
-//     enable_language_identification: true,
-//     enable_speaker_diarization: true,
-//     context: {text: context}
-// }));
+const sttPromise = pipe.call("stt", async () =>
+    await stt.transcribe(audioPath, {
+    enable_language_identification: true,
+    enable_speaker_diarization: true,
+    context: {text: context}
+}));
 
-const vttResp = await pipe.call("vtt", async () =>
+const vttPromise = pipe.call("vtt", async () =>
     await vtt.transcribe(videoPath, {}));
+
+const sttResp = await sttPromise;
+const vttResp = await vttPromise;
 
 pipe.summary();
 

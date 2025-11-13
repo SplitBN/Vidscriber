@@ -13,6 +13,7 @@
   "dependencies": {
     "@google-cloud/storage": "^7.17.3",
     "@google/genai": "^1.29.0",
+    "ajv": "^8.17.1",
     "axios": "^1.13.1",
     "dotenv": "^17.2.3",
     "ffmpeg-static": "^5.2.0",

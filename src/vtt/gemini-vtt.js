@@ -5,10 +5,12 @@ import { createReadStream } from "node:fs";
 import { createHash } from "node:crypto";
 import { getLogger } from "../logger.js";
 import { fileTypeFromStream } from "file-type";
-import { PHASE_1_INSTRUCTIONS } from "./vtt-instructions.js";
+import {PHASE_1_INSTRUCTIONS, PHASE_2_INSTRUCTIONS} from "./vtt-instructions.js";
 import vttSchema from './vtt-schema.json' with { type: 'json' };
+import {Ajv} from 'ajv'
 
 const log = getLogger("GeminiVTT");
+const validateVttSchema = new Ajv().compile(vttSchema);
 
 export class GeminiVTT {
 
@@ -43,28 +45,91 @@ export class GeminiVTT {
         const gcsUri = `gs://${this.bucket.name}/${videoFile.name}`;
         log.debug(`gcsUri: ${gcsUri}`);
 
-        // TODO this is working great, perhaps add that lib to verify the schema, then make phase two, dont forget to fix the instructions
+        let finalPhase = "phase1";
 
-        const phase1Resp = await log.infoSpan("Coarse Analysis",
-            this._callGemini({
+        // - Call Phase 1
+        const phase1Resp = await log.infoSpan("Coarse Analysis (Phase 1)", this._callGemini({
+            parts: [
+                {
+                    text: `OUTPUT_SCHEMA: ${JSON.stringify(vttSchema)}` // Including schema cuz responseJsonSchema sucks
+                },
+                {
+                    fileData: { fileUri: gcsUri, mimeType: mime },
+                    videoMetadata: { fps: 2 }
+                }
+            ],
+            instructions: PHASE_1_INSTRUCTIONS,
+            resolution: "LOW"
+        }));
+        // -
+
+        // Extract from phase 1 api response
+        const phase1 = this._extractFromResp(phase1Resp);
+
+        // Validate Schema
+        this._validateAgainstSchema(phase1);
+
+        // - Extract timestamps for refinement
+        const timestampsToRefine = [];
+
+        const scanNodeForAccurateProcessing = (node) => {
+            if (node.accurate_processing?.needed && node.start_ms && node.end_ms) {
+                timestampsToRefine.push({
+                    start_ms: node.start_ms,
+                    end_ms: node.end_ms,
+                    reason: node.accurate_processing.reason
+                });
+            }
+            if (node.children)
+                for (let child of node.children)
+                    scanNodeForAccurateProcessing(child);
+        }
+
+        for (let node of phase1.transcription?.timeline || [])
+            scanNodeForAccurateProcessing(node);
+        // -
+
+        // Check if Phase 2 is needed TODO add a toggle for this
+        let phase2 = {};
+        if (timestampsToRefine.length > 0) {
+            log.info(`Found ${timestampsToRefine.length} timestamps to refine (Total ${timestampsToRefine.reduce((sum, n) => sum + (n.end_ms - n.start_ms), 0)} ms), Calling refiner (phase 2)`);
+            log.debug("Timestamps to refine: " + timestampsToRefine.map(t => `(${t.start_ms}-${t.end_ms}) [${t.reason}]`).join("  ,  "));
+
+            // - Call Phase 2
+            const parts = [];
+            for (let ts of timestampsToRefine) {
+                const s = `${(Number(ts.start_ms) / 1000).toFixed(1)}s`; // Convert to "10.4s" format
+                const e = `${(Number(ts.end_ms) / 1000).toFixed(1)}s`;
+                parts.push({
+                    fileData: { fileUri: gcsUri, mimeType: mime },
+                    videoMetadata: { fps: 10, startOffset: s, endOffset: e }
+                });
+            }
+
+            const phase2Resp = await log.infoSpan("Refined Analysis (Phase 2)", this._callGemini({
                 parts: [
                     {
-                      text: `OUTPUT_SCHEMA: ${JSON.stringify(vttSchema)}` // Including schema cuz responseJsonSchema sucks
+                        text: `OUTPUT_SCHEMA: ${JSON.stringify(vttSchema)}` // Including schema cuz responseJsonSchema sucks
                     },
-                    {
-                        fileData: { fileUri: gcsUri, mimeType: mime },
-                        videoMetadata: { fps: 1 }
-                    }
+                    ...parts
                 ],
-                instructions: PHASE_1_INSTRUCTIONS,
-                resolution: "LOW"
-            })
-        );
+                instructions: PHASE_2_INSTRUCTIONS,
+                resolution: "MEDIUM"
+            }));
 
-        log.debug(`phase1Resp: ${JSON.stringify(phase1Resp, null, 2)}`);
+            // Extract from phase 2 api response
+            phase2 = this._extractFromResp(phase2Resp);
+
+            // Validate Schema
+            this._validateAgainstSchema(phase2);
+            finalPhase = "phase2";
+        }
+        // -
+        else
+            log.info("No timestamps to refine, skipping phase 2");
 
 
-        return { test: "test", version: "asd" };
+        return { finalPhase: finalPhase, phase1: phase1, phase2: phase2 };
     }
 
     async _awaitReady() {
@@ -156,5 +221,28 @@ export class GeminiVTT {
         const stream = await createReadStream(path, { start: 0, end: 8191 });
         const info = await fileTypeFromStream(stream);
         return info?.mime || "application/octet-stream";
+    }
+
+    _extractFromResp(resp) {
+        const result = {};
+        for (let part of resp.candidates[0].content?.parts || []) {
+            if (part.thought)
+                result.thoughts = part.text;
+            else if (result.schema)
+                log.warn("Multiple none thought parts received from gemini, ignoring the rest");
+            else
+                result.transcription = JSON.parse(part.text);
+        }
+
+        result.usageMetadata = resp.usageMetadata;
+        return result;
+    }
+
+    _validateAgainstSchema(o) {
+        if (!validateVttSchema(o.transcription))
+            throw new Error(`
+            Invalid VTT schema: ${JSON.stringify(o.transcription, null, 2)}
+            Schema Errors: ${JSON.stringify(validateVttSchema.errors, null, 2)}
+            `);
     }
 }

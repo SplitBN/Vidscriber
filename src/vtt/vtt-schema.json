@@ -3,46 +3,36 @@
   "type": "object",
   "required": ["version", "summary", "timeline"],
   "additionalProperties": false,
-
   "properties": {
     "version": { "type": "string", "enum": ["vtt.hierarchy.v1"] },
-    "summary": { "type": "string", "description": "A free-text summary of the video, As if you had to explain the video to someone who has never watched it" },
-
+    "summary": { "type": "string", "description": "A free-text summary of the video" },
     "timeline": {
       "type": "array",
       "items": { "$ref": "#/$defs/node" },
-      "description": "A high accuracy detailed transcription of the video in timeline form, All timestamps are in milliseconds"
+      "description": "Detailed video timeline transcription in milliseconds"
     }
   },
-
   "$defs": {
     "base": {
       "type": "object",
       "required": ["kind", "label", "conf", "tags"],
-      "additionalProperties": false,
       "properties": {
         "kind": { "type": "string", "enum": ["state", "span", "moment"] },
-        "label": { "type": "string", "description": "A semantic title" },
-        "description": { "type": "string", "description": "A free-text description for details" },
+        "label": { "type": "string", "description": "Semantic title" },
+        "description": { "type": "string" },
         "conf": { "type": "number", "minimum": 0, "maximum": 1 },
-        "entityIds": { "type": "array", "items": { "type": "string" }, "description": "A list of entity IDs associated with this node" },
+        "entityIds": { "type": "array", "items": { "type": "string" } },
         "bbox": {
           "type": "array",
           "items": { "type": "number", "minimum": 0, "maximum": 1 },
-          "description": "BBox *normalized* coordinates in [x1, y1, x2, y2] format for when visual emphasis is needed",
           "minItems": 4,
-          "maxItems": 4
+          "maxItems": 4,
+          "description": "Normalized [x1,y1,x2,y2] bbox"
         },
-
         "tags": { "type": "array", "items": { "type": "string" } },
-        "children": {
-          "type": "array",
-          "items": { "$ref": "#/$defs/node" },
-          "description": "A list of child nodes of sub-event for detailed accuracy, must be of #/$defs/node type"
-        }
+        "children": { "type": "array", "items": { "$ref": "#/$defs/node" } }
       }
     },
-
     "state": {
       "allOf": [
         { "$ref": "#/$defs/base" },
@@ -50,18 +40,14 @@
           "type": "object",
           "required": ["start_ms", "end_ms"],
           "properties": {
-            "kind": { "type": "string", "enum": ["state"] },
+            "kind": { "const": "state" },
             "start_ms": { "type": "integer" },
             "end_ms": { "type": "integer" },
-            "accurate_processing": {
-              "allOf": [{ "$ref": "#/$defs/accurate_processing" }],
-              "description": "Accurate processing config"
-            }
+            "accurate_processing": { "$ref": "#/$defs/accurate_processing" }
           }
         }
       ]
     },
-
     "span": {
       "allOf": [
         { "$ref": "#/$defs/base" },
@@ -69,18 +55,14 @@
           "type": "object",
           "required": ["start_ms", "end_ms"],
           "properties": {
-            "kind": { "type": "string", "enum": ["span"] },
+            "kind": { "const": "span" },
             "start_ms": { "type": "integer" },
             "end_ms": { "type": "integer" },
-            "accurate_processing": {
-              "allOf": [{ "$ref": "#/$defs/accurate_processing" }],
-              "description": "Accurate processing config"
-            }
+            "accurate_processing": { "$ref": "#/$defs/accurate_processing" }
           }
         }
       ]
     },
-
     "moment": {
       "allOf": [
         { "$ref": "#/$defs/base" },
@@ -88,13 +70,12 @@
           "type": "object",
           "required": ["t_ms"],
           "properties": {
-            "kind": { "type": "string", "enum": ["moment"] },
+            "kind": { "const": "moment" },
             "t_ms": { "type": "integer" }
           }
         }
       ]
     },
-
     "node": {
       "oneOf": [
         { "$ref": "#/$defs/state" },
@@ -102,14 +83,13 @@
         { "$ref": "#/$defs/moment" }
       ]
     },
-
     "accurate_processing": {
       "type": "object",
       "required": ["needed", "reason"],
       "additionalProperties": false,
       "properties": {
-        "needed": { "type": "boolean", "description": "Whether this section should be processed with higher accuracy" },
-        "reason": { "type": "string", "description": "Why this section should be processed with higher accuracy" }
+        "needed": { "type": "boolean" },
+        "reason": { "type": "string" }
       }
     }
   }
