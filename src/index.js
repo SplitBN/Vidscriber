@@ -12,7 +12,6 @@ import {GeminiVTT} from "./vtt/gemini-vtt.js";
 // https://storage.googleapis.com/test-uploads-1/DealCameraMan.mp4 Good deal
 
 // == Input ==
-// const uri = "D:\\VideoMagics\\raw\\Weight-1.mp4";
 const uri = "https://files.catbox.moe/dxh2op.mp4";
 const context = ""
 
