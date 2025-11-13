@@ -3,7 +3,7 @@ import { GoogleGenAI } from '@google/genai';
 import { Storage } from "@google-cloud/storage";
 import { createReadStream } from "node:fs";
 import { createHash } from "node:crypto";
-import { getLogger } from "../logger.js";
+import { getLogger } from "../misc/logger.js";
 import { fileTypeFromStream } from "file-type";
 import {PHASE_1_INSTRUCTIONS, PHASE_2_INSTRUCTIONS} from "./vtt-instructions.js";
 import vttSchema from './vtt-schema.json' with { type: 'json' };

@@ -1,7 +1,7 @@
-import {FfmpegExtractor} from "./extractor.js";
-import {DownloadUtil} from "./downloader.js";
+import {FfmpegExtractor} from "./misc/extractor.js";
+import {DownloadUtil} from "./misc/downloader.js";
 import {Pipeline} from "./pipeline.js";
-import {SonioxSTT} from "./soniox-stt.js";
+import {SonioxSTT} from "./stt/soniox-stt.js";
 import {GeminiVTT} from "./vtt/gemini-vtt.js";
 
 // https://files.catbox.moe/r1ijks.mp4 bahaa bicep
