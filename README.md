@@ -1,3 +1,5 @@
+Please grant a star if you found this repo helpful :)
+
 # Purpose
 Produces an LLM friendly JSON/~~Toon~~ transcription of a video for editing tasks.
 
