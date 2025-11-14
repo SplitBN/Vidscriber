@@ -1,7 +1,7 @@
 Please grant a star if you found this repo helpful :)
 
 # Purpose
-Produces an LLM friendly JSON/~~Toon~~ transcription of a video for editing tasks.
+Produces an accurate LLM friendly JSON/~~Toon~~ transcription of a video for editing tasks. While minimizing token cost.
 
 # About the Project
 This tool focuses on creating structured, machine-readable transcriptions of video content for editing workflows. It combines audio transcription and video-to-text analysis using tools such as **Soniox** for speech recognition and a **two-phase Gemini Video-to-Text (VTT) transcription** system for video analysis.
