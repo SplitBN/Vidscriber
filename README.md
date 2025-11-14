@@ -19,7 +19,7 @@ These tools work together to produce a unified timeline, which includes transcri
 - **Context**: `"A talking head video, of a guy talking about motivation and inspiration."`
 - **Full Output**: https://pastebin.com/JTARvpxb
 - **Output Snippet**:
-```json
+```javascript 
 {
   "version": "vidscriber.v1",
   // Top level summary of the video
