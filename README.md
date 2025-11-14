@@ -9,7 +9,7 @@ The **Soniox ASR tool** is used to process speech, generating both diarized spea
 
 ### Video Transcription (Two-Phase Gemini VTT)
 **Gemini VTT** splits video analysis to a **two-phase process**:
-- **Phase 1 (Coarse Analysis):** Processes the video at 2 frames per second (fps) using a low token count per frame (~66 tokens). This phase identifies general timeline events and highlights video segments requiring further refinement.
+- **Phase 1 (Coarse Analysis):** Processes the video at 2 fps using a low token count per frame (~66 tokens). This phase identifies general timeline events and marks video segments requiring further refinement.
 - **Phase 2 (Refined Analysis):** Uses the marked output from Phase 1 to process only the highlighted segments. It runs at 10 fps with a high token count per frame (~258 tokens), focusing on fine-grained analysis for critical sections of the video, ensuring both precision and efficiency.
 
 These tools work together to produce a unified timeline, which includes transcribed speech, speaker information, and visual events. This structured JSON output makes it easier to understand, index, or process video content.
@@ -19,7 +19,7 @@ These tools work together to produce a unified timeline, which includes transcri
 - **Context**: `"A talking head video, of a guy talking about motivation and inspiration."`
 - **Full Output**: https://pastebin.com/JTARvpxb
 - **Output Snippet**:
-```json
+```javascript 
 {
   "version": "vidscriber.v1",
   // Top level summary of the video
