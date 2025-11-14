@@ -140,37 +140,77 @@ export class TranscriptCompiler {
 
         const timeline = [];
         let stateCount = 0;
+        let momentCount = 0;
 
         for (let i = 0; i < transcription.timeline.length; i++) {
-            const state = transcription.timeline[i];
-            const stateId = `state_${stateCount++}`;
+            const entry = transcription.timeline[i];
+            const kind = entry.kind || "state";
+            const hasMomentTime = typeof entry.t_ms === "number";
 
+            if (kind === "moment" || hasMomentTime) {
+                const t = hasMomentTime ? entry.t_ms : (typeof entry.start_ms === "number" ? entry.start_ms : 0);
+                const momentNode = {
+                    id: `moment_${momentCount++}`,
+                    kind: "moment",
+                    label: entry.label || null,
+                    tags: Array.isArray(entry.tags) ? entry.tags.slice() : [],
+                    is_moment: true,
+                    t_ms: t,
+                    start_ms: t,
+                    end_ms: t,
+                    children: []
+                };
+                timeline.push(momentNode);
+                continue;
+            }
+
+            const stateId = `state_${stateCount++}`;
             const stateNode = {
                 id: stateId,
-                kind: state.kind || "state",
-                label: state.label || null,
-                tags: Array.isArray(state.tags) ? state.tags.slice() : [],
-                start_ms: typeof state.start_ms === "number" ? state.start_ms : 0,
-                end_ms: typeof state.end_ms === "number" ? state.end_ms : 0,
+                kind: kind,
+                label: entry.label || null,
+                tags: Array.isArray(entry.tags) ? entry.tags.slice() : [],
+                is_moment: false,
+                start_ms: typeof entry.start_ms === "number" ? entry.start_ms : 0,
+                end_ms: typeof entry.end_ms === "number" ? entry.end_ms : 0,
                 children: []
             };
 
-            if (Array.isArray(state.children)) {
-                for (let j = 0; j < state.children.length; j++) {
-                    const span = state.children[j];
-                    const spanId = `${stateId}.span_${j}`;
+            if (Array.isArray(entry.children)) {
+                let localMomentIdx = 0;
+                for (let j = 0; j < entry.children.length; j++) {
+                    const child = entry.children[j];
+                    const childKind = child.kind || "span";
+                    const childHasMomentTime = typeof child.t_ms === "number";
 
-                    const spanNode = {
-                        id: spanId,
-                        kind: span.kind || "span",
-                        label: span.label || null,
-                        tags: Array.isArray(span.tags) ? span.tags.slice() : [],
-                        start_ms: typeof span.start_ms === "number" ? span.start_ms : 0,
-                        end_ms: typeof span.end_ms === "number" ? span.end_ms : 0,
-                        children: []
-                    };
-
-                    stateNode.children.push(spanNode);
+                    if (childKind === "moment" || childHasMomentTime) {
+                        const t = childHasMomentTime ? child.t_ms : (typeof child.start_ms === "number" ? child.start_ms : 0);
+                        const childMoment = {
+                            id: `${stateId}.moment_${localMomentIdx++}`,
+                            kind: "moment",
+                            label: child.label || null,
+                            tags: Array.isArray(child.tags) ? child.tags.slice() : [],
+                            is_moment: true,
+                            t_ms: t,
+                            start_ms: t,
+                            end_ms: t,
+                            children: []
+                        };
+                        stateNode.children.push(childMoment);
+                    } else {
+                        const spanId = `${stateId}.span_${j}`;
+                        const spanNode = {
+                            id: spanId,
+                            kind: childKind,
+                            label: child.label || null,
+                            tags: Array.isArray(child.tags) ? child.tags.slice() : [],
+                            is_moment: false,
+                            start_ms: typeof child.start_ms === "number" ? child.start_ms : 0,
+                            end_ms: typeof child.end_ms === "number" ? child.end_ms : 0,
+                            children: []
+                        };
+                        stateNode.children.push(spanNode);
+                    }
                 }
             }
 
@@ -183,7 +223,7 @@ export class TranscriptCompiler {
     _linkSpeechAndVideo(speechTimeline, videoTimeline) {
         const visitNode = (node, cb) => {
             cb(node);
-            if (Array.isArray(node.children)) {
+            if (Array.isArray(node.children) && node.children.length) {
                 for (let i = 0; i < node.children.length; i++) {
                     visitNode(node.children[i], cb);
                 }
@@ -197,18 +237,30 @@ export class TranscriptCompiler {
 
             for (let t = 0; t < videoTimeline.length; t++) {
                 visitNode(videoTimeline[t], node => {
-                    const nodeStart = node.start_ms;
-                    const nodeEnd = node.end_ms;
+                    if (node.is_moment) {
+                        const tMs = typeof node.t_ms === "number" ? node.t_ms : node.start_ms;
+                        if (tMs >= segStart && tMs <= segEnd) {
+                            seg.video_nodes.push({
+                                node_id: node.id,
+                                is_moment: true,
+                                t_ms: tMs
+                            });
+                        }
+                    } else {
+                        const nodeStart = node.start_ms;
+                        const nodeEnd = node.end_ms;
 
-                    const localStart = Math.max(segStart, nodeStart);
-                    const localEnd = Math.min(segEnd, nodeEnd);
+                        const localStart = Math.max(segStart, nodeStart);
+                        const localEnd = Math.min(segEnd, nodeEnd);
 
-                    if (localEnd > localStart) {
-                        seg.video_nodes.push({
-                            node_id: node.id,
-                            local_start_ms: localStart,
-                            local_end_ms: localEnd
-                        });
+                        if (localEnd > localStart) {
+                            seg.video_nodes.push({
+                                node_id: node.id,
+                                is_moment: false,
+                                local_start_ms: localStart,
+                                local_end_ms: localEnd
+                            });
+                        }
                     }
                 });
             }
@@ -219,7 +271,7 @@ export class TranscriptCompiler {
         const nodeMap = {};
         const visitNode = node => {
             nodeMap[node.id] = node;
-            if (Array.isArray(node.children)) {
+            if (Array.isArray(node.children) && node.children.length) {
                 for (let i = 0; i < node.children.length; i++) {
                     visitNode(node.children[i]);
                 }
@@ -233,35 +285,52 @@ export class TranscriptCompiler {
             const videoNodes = seg.video_nodes.map(vn => {
                 const node = nodeMap[vn.node_id];
                 const label = node && node.label ? ` (${node.label})` : "";
-                return `${vn.node_id}${label} ${this._timeRangeString(vn.local_start_ms, vn.local_end_ms)}`;
+                const timeStr = vn.is_moment
+                    ? this._momentString(vn.t_ms)
+                    : this._timeRangeString(vn.local_start_ms, vn.local_end_ms);
+                return `${vn.node_id}${label} ${timeStr}`;
             });
 
             const words = seg.words.map(w =>
                 `${this._timeRangeString(w.start_ms, w.end_ms)} ${w.text}`
             );
 
-            return {
+            const out = {
                 id: seg.id,
                 time: this._timeRangeString(seg.start_ms, seg.end_ms),
                 speaker: seg.speaker,
                 language: seg.language,
-                text: seg.text,
-                video_nodes: videoNodes,
-                words
+                text: seg.text
             };
+
+            if (videoNodes.length) out.video_nodes = videoNodes;
+            if (words.length) out.words = words;
+
+            return out;
         });
     }
 
     _compactVideoTimeline(nodes) {
         const compactNode = node => {
-            return {
+            const res = {
                 id: node.id,
                 kind: node.kind,
-                time: this._timeRangeString(node.start_ms, node.end_ms),
-                label: node.label,
-                tags: node.tags,
-                children: (node.children || []).map(compactNode)
+                time: node.is_moment
+                    ? this._momentString(node.start_ms)
+                    : this._timeRangeString(node.start_ms, node.end_ms),
+                label: node.label
             };
+
+            if (Array.isArray(node.tags) && node.tags.length) {
+                res.tags = node.tags.slice();
+            }
+
+            const children = (node.children || []).map(compactNode);
+            if (children.length) {
+                res.children = children;
+            }
+
+            return res;
         };
 
         return nodes.map(compactNode);
@@ -274,4 +343,9 @@ export class TranscriptCompiler {
     _timeRangeString(startMs, endMs) {
         return `[${this._msToSec(startMs)}->${this._msToSec(endMs)}]`;
     }
+
+    _momentString(ms) {
+        return `[${this._msToSec(ms)}]`;
+    }
 }
+
