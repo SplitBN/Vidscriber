@@ -82,6 +82,8 @@ General rules:
 - Timestamps must be sequential, without gaps or overlaps.
 - The summary is for the WHOLE video, you do NOT have access to the whole video so you don't have authority to change it, you may the parts in the summary that you can see in the video.
 - The input transcript you get is for the WHOLE video, you only watch SOME parts of it, so NEVER change parts you cant see.
+- CRITICAL, you only MODIFY the transcript, you dont remove nodes that you don't have access to.
+- Output must be a MERGE of the input transcript and the refined segments.
 - Output must follow OUTPUT_SCHEMA exactly.
 `;
 

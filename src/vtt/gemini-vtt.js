@@ -5,7 +5,12 @@ import { createReadStream } from "node:fs";
 import { createHash } from "node:crypto";
 import { getLogger } from "../misc/logger.js";
 import { fileTypeFromStream } from "file-type";
-import {PHASE_1_INSTRUCTIONS, PHASE_2_INSTRUCTIONS} from "./vtt-instructions.js";
+import {
+    PHASE_1_INSTRUCTIONS,
+    PHASE_1_INSTRUCTIONS_GPT,
+    PHASE_2_INSTRUCTIONS,
+    PHASE_2_INSTRUCTIONS_GPT
+} from "./vtt-instructions.js";
 import vttSchema from './vtt-schema.json' with { type: 'json' };
 import {Ajv} from 'ajv'
 
@@ -60,7 +65,7 @@ export class GeminiVTT {
                     videoMetadata: { fps: 2 }
                 }
             ],
-            instructions: PHASE_1_INSTRUCTIONS,
+            instructions: PHASE_1_INSTRUCTIONS_GPT,
             resolution: "LOW"
         }));
         // -
@@ -115,7 +120,7 @@ export class GeminiVTT {
                     },
                     ...parts
                 ],
-                instructions: PHASE_2_INSTRUCTIONS,
+                instructions: PHASE_2_INSTRUCTIONS_GPT,
                 resolution: "MEDIUM"
             }));
 
@@ -171,7 +176,7 @@ export class GeminiVTT {
                 frequencyPenalty: -2, // None at all
                 candidateCount: 1,
                 mediaResolution: "MEDIA_RESOLUTION_" + resolution, // LOW = 66 tokens  |  MEDIUM = 258 tokens
-                audioTimestamp: true
+                audioTimestamp: parts.length <= 1 // Not allowed if there is more than one clip
             }
         })
     }
