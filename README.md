@@ -1,14 +1,6 @@
 # Purpose
 Produces an LLM friendly JSON/~~Toon~~ transcription of a video for editing tasks.
 
-# Plan (steps)
-1) Normalze video and audio quality
-2) Use ASR model to transcribe and diarize speech (and maybe other sound events).
-3) User a Video Understanding model to transcribe events and visuals.
-4) Combine outputs into a single timeline.
-5) ~~Translate JSON timeline into Toon format.~~ (Not doing since the transcription structure is too complex for Toon to be beneficial)
-6) Define unctions for google cloud functions integration.
-
 # About the Project
 This tool focuses on creating structured, machine-readable transcriptions of video content for editing workflows. It combines audio transcription and video-to-text analysis using tools such as **Soniox** for speech recognition and a **two-phase Gemini Video-to-Text (VTT) transcription** system for video analysis.
 
@@ -98,9 +90,6 @@ These tools work together to produce a unified timeline, which includes transcri
 ```
 
 
-
-
-
 # How To Run:
 * Set up .env following [.env.example](https://github.com/SplitBN/Vidscriber/blob/master/.env.example).
 * You can run the tool in your IDE using the [index.js](https://github.com/SplitBN/Vidscriber/blob/master/src/index.js) file:
@@ -109,3 +98,12 @@ These tools work together to produce a unified timeline, which includes transcri
   * Insure the `RECOMPUTE_FROM` field is set to `"download"` for new files.
   * Run the file.
   * You can see the output of each step in the ./cache folder.
+
+
+# Steps
+1) Normalze video and audio quality
+2) Use ASR model to transcribe and diarize speech (and maybe other sound events).
+3) User a Video Understanding model to transcribe events and visuals.
+4) Combine outputs into a single timeline.
+5) ~~Translate JSON timeline into Toon format.~~ (Not doing since the transcription structure is too complex for Toon to be beneficial)
+6) Define functions for google cloud functions integration.
