@@ -41,6 +41,8 @@ export class GeminiVTT {
     async transcribe(videoPath, opts = {}) {
         await this._awaitReady();
 
+        const { context } = opts;
+
         const { bucketFile: videoFile, mime } = await this._getBucketFile(videoPath); // File that exists and ready to use
         const gcsUri = `gs://${this.bucket.name}/${videoFile.name}`;
         log.debug(`gcsUri: ${gcsUri}`);
@@ -51,7 +53,7 @@ export class GeminiVTT {
         const phase1Resp = await log.infoSpan("Coarse Analysis (Phase 1)", this._callGemini({
             parts: [
                 {
-                    text: `OUTPUT_SCHEMA: ${JSON.stringify(vttSchema)}` // Including schema cuz responseJsonSchema sucks
+                    text: "VIDEO_CONTEXT: " + (context || "No context provided")
                 },
                 {
                     fileData: { fileUri: gcsUri, mimeType: mime },
@@ -109,7 +111,7 @@ export class GeminiVTT {
             const phase2Resp = await log.infoSpan("Refined Analysis (Phase 2)", this._callGemini({
                 parts: [
                     {
-                        text: `OUTPUT_SCHEMA: ${JSON.stringify(vttSchema)}` // Including schema cuz responseJsonSchema sucks
+                        text: "FULL_VIDEO_CONTEXT (may refer to parts you dont see in video form): " + (context || "No context provided")
                     },
                     ...parts
                 ],
@@ -147,7 +149,12 @@ export class GeminiVTT {
             contents: [
                 {
                     role: "user",
-                    parts: parts
+                    parts: [
+                        {
+                            text: `OUTPUT_SCHEMA: ${JSON.stringify(vttSchema)}` // Including schema cuz responseJsonSchema sucks
+                        },
+                        ...parts
+                    ]
                 }
             ],
             config: {

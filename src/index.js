@@ -6,19 +6,12 @@ import {GeminiVTT} from "./vtt/gemini-vtt.js";
 import {GeminiSTT} from "./stt/gemini-stt.js";
 import {TranscriptCompiler} from "./transcript-compiler.js";
 
-// https://files.catbox.moe/r1ijks.mp4 bahaa bicep
-// https://files.catbox.moe/dxh2op.mp4 zest
-// https://files.catbox.moe/ops2f9.mp4 Random buff dude 1
-// https://files.catbox.moe/8zdpox.mp4 trimmed buff dude
-// D:\VideoMagics\long-zonot.mp4 long buff dude
-// https://storage.googleapis.com/test-uploads-1/DealCameraMan.mp4 Good deal
-
 // == Input ==
 const uri = "https://files.catbox.moe/r1ijks.mp4";
 const context = ""
 
 // == Pipeline ==
-const RECOMPUTE_FROM = "vtt";
+const RECOMPUTE_FROM = "download";
 const STEP_ORDER = ["download", "extract", "stt", "vtt", "compiler"];
 const pipe = new Pipeline("./.cache", RECOMPUTE_FROM, STEP_ORDER);
 await pipe.init();
@@ -46,7 +39,9 @@ const sttPromise = pipe.call("stt", async () =>
     }));
 
 const vttPromise = pipe.call("vtt", async () =>
-    await vtt.transcribe(videoPath, {}));
+    await vtt.transcribe(videoPath, {
+        context: context
+    }));
 
 const sttResp = await sttPromise;
 const vttResp = await vttPromise;

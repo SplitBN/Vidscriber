@@ -163,12 +163,4 @@ export class GeminiSTT {
         result.usageMetadata = resp.usageMetadata;
         return result;
     }
-
-    _validateAgainstSchema(o) {
-        if (!validateVttSchema(o.transcription))
-            throw new Error(`
-            Invalid VTT schema: ${JSON.stringify(o.transcription, null, 2)}
-            Schema Errors: ${JSON.stringify(validateVttSchema.errors, null, 2)}
-            `);
-    }
 }
