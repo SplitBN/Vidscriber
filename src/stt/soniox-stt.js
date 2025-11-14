@@ -18,7 +18,12 @@ export class SonioxSTT {
 
     async transcribe(audioPath, opts = {}) {
 
-        const fileId = await this._uploadFile(audioPath);
+        try {
+            const sz = fs.statSync(audioPath).size;
+            log.debug(`audio file size: ${sz} bytes`);
+        } catch {}
+
+        const fileId = await log.infoSpan("soniox: upload file", () => this._uploadFile(audioPath));
 
         const config = {
             ...opts,
@@ -26,11 +31,30 @@ export class SonioxSTT {
             file_id: fileId,
         };
 
-        const id = await this._createTranscription(config);
-        await this._waitUntilDone(id);
-        const resp = await this._getTranscript(id);
-        await this._deleteFile(fileId);
-        return await this._processResponse(resp);
+        return await log.infoSpan("transcribing", async () => {
+            const id = await log.debugSpan("soniox: create transcription", () =>
+                this._createTranscription(config)
+            );
+
+            await log.debugSpan("soniox: wait until done", () =>
+                this._waitUntilDone(id)
+            );
+
+            const resp = await log.debugSpan("soniox: get transcript", () =>
+                this._getTranscript(id)
+            );
+
+            log.debug(`soniox api response: ${JSON.stringify(resp)}`);
+
+            await log.debugSpan("soniox: delete uploaded file", () =>
+                this._deleteFile(fileId)
+            );
+
+            return await log.debugSpan("soniox: process response", () =>
+                this._processResponse(resp)
+            );
+        });
+
     }
 
     async _uploadFile(filePath) {

@@ -5,6 +5,9 @@ import path from "node:path";
 import crypto from "node:crypto";
 import { pipeline } from "node:stream/promises";
 import { Readable } from "node:stream";
+import {getLogger} from "./logger.js";
+
+const log = getLogger("Downloader");
 
 /**
  * Utility for accessing files from URIs
@@ -47,6 +50,8 @@ export class DownloadUtil {
             const buf = Buffer.from(await res.arrayBuffer());
             await fsp.writeFile(outPath, buf);
         }
+
+        log.debug(`Downloaded ${url} to ${outPath}`);
 
         return outPath;
     }

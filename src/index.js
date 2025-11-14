@@ -6,9 +6,18 @@ import {GeminiVTT} from "./vtt/gemini-vtt.js";
 import {GeminiSTT} from "./stt/gemini-stt.js";
 import {TranscriptCompiler} from "./transcript-compiler.js";
 
+// TODO in soniox stt, cut the first silence before sending, to try to fix clamping or minimizing it.
+
+// https://files.catbox.moe/r1ijks.mp4 bahaa bicep
+// https://files.catbox.moe/dxh2op.mp4 zest
+// https://files.catbox.moe/ops2f9.mp4 Random buff dude 1
+// https://files.catbox.moe/8zdpox.mp4 trimmed buff dude
+// D:\VideoMagics\long-zonot.mp4 long buff dude
+// https://storage.googleapis.com/test-uploads-1/DealCameraMan.mp4 Good deal
+
 // == Input ==
-const uri = "https://files.catbox.moe/r1ijks.mp4";
-const context = ""
+const uri = "D:/Downloads/pintrest.mp4";
+const context = "A talking head video, of a guy talking about the importance of setting goal reminders."
 
 // == Pipeline ==
 const RECOMPUTE_FROM = "download";
