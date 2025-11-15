@@ -94,7 +94,7 @@ These tools work together to produce a unified timeline, which includes transcri
 
 # How To Run:
 * Set up .env following [.env.example](https://github.com/SplitBN/Vidscriber/blob/master/.env.example).
-* You can run the tool in your IDE using the [index.js](https://github.com/SplitBN/Vidscriber/blob/master/src/index.js) file:
+* You can run the tool in your IDE using the [src/ide/index.js](https://github.com/SplitBN/Vidscriber/blob/master/src/ide/index.js) file:
   * Assign a video link or a file path to the `uri` field.
   * Describe the video's context in the `context` field (Optional, to make transcription more accurate).
   * Insure the `RECOMPUTE_FROM` field is set to `"download"` for new files.

@@ -1,10 +1,10 @@
 import "dotenv/config";
-import { FfmpegExtractor } from "../misc/extractor.js";
-import { DownloadUtil } from "../misc/downloader.js";
-import { SonioxSTT } from "../stt/soniox-stt.js";
-import { GeminiVTT } from "../vtt/gemini-vtt.js";
-import { TranscriptCompiler } from "../transcript-compiler.js";
-import {getLogger} from "../misc/logger.js";
+import { FfmpegExtractor } from "./src/misc/extractor.js";
+import { DownloadUtil } from "./src/misc/downloader.js";
+import { SonioxSTT } from "./src/stt/soniox-stt.js";
+import { GeminiVTT } from "./src/vtt/gemini-vtt.js";
+import { TranscriptCompiler } from "./src/transcript-compiler.js";
+import { getLogger } from "./src/misc/logger.js";
 
 const log = getLogger("CloudFunctions");
 
@@ -21,17 +21,36 @@ function createServices() {
 
 /**
  * HTTP Cloud Function
+ */
+export async function vidscriber(req, res) {
+    try {
+        const path = new URL(req.url, `http://${req.headers.host}`).pathname;
+        if (path === "/health") {
+            return health(req, res);
+        } else if (path === "/transcribeFile") {
+            return transcribeFile(req, res);
+        } else {
+            res.status(404).send("Not Found, Expected /transcribeFile or /health");
+        }
+    } catch (err) {
+        log.error("Unhandled error:", err);
+        res.status(500).json({ ok: false, error: err?.message || "Internal Error" });
+    }
+}
+
+/**
+ * Runs the whole pipeline for a single media file.
  * Body: { uri: string, context?: string }
  * Runs the full pipeline and returns each step's result.
  */
-export async function processTranscription(req, res) {
+export async function transcribeFile(req, res) {
     try {
         if (req.method !== "POST") {
             res.status(405).send("Method Not Allowed");
             return;
         }
 
-        const { uri, context } = req.body || {};
+        const { uri, context } = req.query || {};
         if (!uri) {
             res.status(400).json({ error: "Field 'uri' is required" });
             return;
@@ -41,21 +60,21 @@ export async function processTranscription(req, res) {
         const { downloadUtils, extractor, stt, vtt, compiler } = await log.infoSpan("creating services", createServices());
 
         // Download
-        const localPath = await log.infoSpan("downloading media", downloadUtils.getLocalPath(uri));
+        const localPath = await log.infoSpan("downloading media", () => downloadUtils.getLocalPath(uri));
 
         // Extract
-        const { audioPath, videoPath } = await log.infoSpan("extracting/normalizing media", extractor.extract(localPath));
+        const { audioPath, videoPath } = await log.infoSpan("extracting/normalizing media", () => extractor.extract(localPath));
 
         // STT and VTT in parallel
         const [sttResult, vttResult] = await Promise.all([
             log.infoSpan("speech transcription",
-                stt.transcribe(audioPath, {
+                () => stt.transcribe(audioPath, {
                     enable_language_identification: true,
                     enable_speaker_diarization: true,
                     context: { text: context || "" },
                 })),
 
-            log.infoSpan("video transcription", vtt.transcribe(videoPath, { context: context }))
+            log.infoSpan("video transcription", () => vtt.transcribe(videoPath, { context: context }))
         ]);
 
         // Compile
@@ -65,8 +84,6 @@ export async function processTranscription(req, res) {
         res.status(200).json({
             ok: true,
             steps: {
-                download: { localPath },
-                extract: { audioPath, videoPath },
                 stt: sttResult,
                 vtt: vttResult,
                 compiler: compiledResult,

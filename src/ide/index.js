@@ -1,10 +1,10 @@
-import {FfmpegExtractor} from "./misc/extractor.js";
-import {DownloadUtil} from "./misc/downloader.js";
+import {FfmpegExtractor} from "../misc/extractor.js";
+import {DownloadUtil} from "../misc/downloader.js";
 import {Pipeline} from "./pipeline.js";
-import {SonioxSTT} from "./stt/soniox-stt.js";
-import {GeminiVTT} from "./vtt/gemini-vtt.js";
-import {GeminiSTT} from "./stt/gemini-stt.js";
-import {TranscriptCompiler} from "./transcript-compiler.js";
+import {SonioxSTT} from "../stt/soniox-stt.js";
+import {GeminiVTT} from "../vtt/gemini-vtt.js";
+import {GeminiSTT} from "../stt/gemini-stt.js";
+import {TranscriptCompiler} from "../transcript-compiler.js";
 
 // TODO in soniox stt, cut the first silence before sending, to try to fix clamping or minimizing it.
 
@@ -16,11 +16,11 @@ import {TranscriptCompiler} from "./transcript-compiler.js";
 // https://storage.googleapis.com/test-uploads-1/DealCameraMan.mp4 Good deal
 
 // == Input ==
-const uri = "D:/Downloads/pintrest.mp4";
-const context = "A talking head video, of a guy talking about the importance of setting goal reminders."
+const uri = "https://storage.googleapis.com/test-uploads-1/DealCameraMan.mp4";
+const context = "A talking head video, of a guy pitching and cameraman is guiding him."
 
 // == Pipeline ==
-const RECOMPUTE_FROM = "download";
+const RECOMPUTE_FROM = "extract";
 const STEP_ORDER = ["download", "extract", "stt", "vtt", "compiler"];
 const pipe = new Pipeline("./.cache", RECOMPUTE_FROM, STEP_ORDER);
 await pipe.init();

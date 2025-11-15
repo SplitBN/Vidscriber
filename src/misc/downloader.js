@@ -47,8 +47,7 @@ export class DownloadUtil {
             const ws = fs.createWriteStream(outPath);
             await pipeline(Readable.fromWeb(res.body), ws);
         } else {
-            const buf = Buffer.from(await res.arrayBuffer());
-            await fsp.writeFile(outPath, buf);
+            throw new Error("No response body for url " + url + " - cannot download");
         }
 
         log.debug(`Downloaded ${url} to ${outPath}`);
