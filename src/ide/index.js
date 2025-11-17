@@ -17,10 +17,10 @@ import {TranscriptCompiler} from "../transcript-compiler.js";
 
 // == Input ==
 const uri = "https://storage.googleapis.com/test-uploads-1/DealCameraMan.mp4";
-const context = "A talking head video, of a guy pitching and cameraman is guiding him."
+const context = "A talking head of a guy pitching, with the cameraman guiding him on what to say etc.."
 
 // == Pipeline ==
-const RECOMPUTE_FROM = "extract";
+const RECOMPUTE_FROM = "vtt";
 const STEP_ORDER = ["download", "extract", "stt", "vtt", "compiler"];
 const pipe = new Pipeline("./.cache", RECOMPUTE_FROM, STEP_ORDER);
 await pipe.init();

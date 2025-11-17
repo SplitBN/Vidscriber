@@ -6,9 +6,7 @@ import { createHash } from "node:crypto";
 import { getLogger } from "../misc/logger.js";
 import { fileTypeFromStream } from "file-type";
 import {
-    PHASE_1_INSTRUCTIONS,
     PHASE_1_INSTRUCTIONS_GPT,
-    PHASE_2_INSTRUCTIONS,
     PHASE_2_INSTRUCTIONS_GPT
 } from "./vtt-instructions.js";
 import vttSchema from './vtt-schema.json' with { type: 'json' };
@@ -149,6 +147,7 @@ export class GeminiVTT {
             instructions,
             resolution
         } = opts;
+        log.debug(`Calling Gemini with parts: `+JSON.stringify(parts, null, 2));
         return await this.client.models.generateContent({
             model: "gemini-2.5-flash",
             contents: [
@@ -172,7 +171,7 @@ export class GeminiVTT {
                 },
                 temperature: 0,
                 topK: 1,
-                // topP: 1, Apparently shouldn't be changed if temperature is changed
+                topP: 1, // Apparently shouldn't be changed if temperature is changed
                 frequencyPenalty: -2, // None at all
                 candidateCount: 1,
                 mediaResolution: "MEDIA_RESOLUTION_" + resolution, // LOW = 66 tokens  |  MEDIUM = 258 tokens
@@ -237,6 +236,7 @@ export class GeminiVTT {
     }
 
     _extractFromResp(resp) {
+        log.debug(`Extracting from response: `+JSON.stringify(resp, null, 2));
         const result = {};
         for (let part of resp.candidates[0].content?.parts || []) {
             if (part.thought)

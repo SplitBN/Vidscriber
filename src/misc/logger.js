@@ -25,7 +25,7 @@ function formatLine(info) {
 }
 
 const root = winston.createLogger({
-    level: "info",
+    level: "debug",
     format: winston.format.printf(formatLine),
     transports: [new winston.transports.Console({ stderrLevels: ["error"] })]
 });
