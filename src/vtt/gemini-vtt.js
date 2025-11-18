@@ -116,6 +116,9 @@ export class GeminiVTT {
                     {
                         text: "FULL_VIDEO_CONTEXT (may refer to parts you dont see in video form): " + (context || "No context provided")
                     },
+                    {
+                        text: "COARSE_TRANSCRIPTION: " + JSON.stringify(phase1.transcription)
+                    },
                     ...parts
                 ],
                 instructions: PHASE_2_INSTRUCTIONS_GPT,
@@ -148,7 +151,9 @@ export class GeminiVTT {
             resolution
         } = opts;
         log.debug(`Calling Gemini with parts: `+JSON.stringify(parts, null, 2));
-        return await this.client.models.generateContent({
+
+        /** @type {import('@google/genai').GenerateContentParameters} */
+        const config = {
             model: "gemini-2.5-flash",
             contents: [
                 {
@@ -177,7 +182,22 @@ export class GeminiVTT {
                 mediaResolution: "MEDIA_RESOLUTION_" + resolution, // LOW = 66 tokens  |  MEDIUM = 258 tokens
                 audioTimestamp: parts.length <= 1 // Not allowed if there is more than one clip
             }
-        })
+        }
+
+        // Estimate tokens
+        const countResponse = await this.client.models.countTokens(config);
+        const estimateTokens = countResponse.totalTokens;
+        log.info("Token Estimate: "+estimateTokens)
+
+        // if (estimateTokens > 100000) {
+        //     log.info("Estimated tokens exceed 100k, Using 1M context window model");
+        //     // config.model = config.model + "-long";
+        // }
+        // else
+        //     log.info("Estimated tokens within 100k, Using standard model");
+
+        // Call gemini
+        return await this.client.models.generateContent(config)
     }
 
     /**
