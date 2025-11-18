@@ -11,6 +11,8 @@ import {
 } from "./vtt-instructions.js";
 import vttSchema from './vtt-schema.json' with { type: 'json' };
 import {Ajv} from 'ajv'
+import ffmpeg from "fluent-ffmpeg";
+import ffmpegPath from "ffmpeg-static";
 
 const log = getLogger("GeminiVTT");
 const validateVttSchema = new Ajv().compile(vttSchema);
@@ -31,6 +33,8 @@ export class GeminiVTT {
         this.storage = new Storage({ projectId: this.project });
         this.bucket = this.storage.bucket(this.bucketID);
 
+        ffmpeg.setFfmpegPath(ffmpegPath); // For video duration extraction
+
         this._readyPromise = (async () => {
             // Async init stuff
             const [exists] = await this.bucket.exists();
@@ -39,6 +43,8 @@ export class GeminiVTT {
             else
                 log.debug("Bucket exists");
         })();
+
+        this.recalls = 0;
     }
 
     async transcribe(videoPath, opts = {}) {
@@ -53,6 +59,9 @@ export class GeminiVTT {
 
             let finalPhase = "phase1";
 
+            const videoDuration = await log.infoSpan("video duration extraction", this._getVideoDuration(videoPath));
+            log.debug(`Video duration: ${videoDuration}s`);
+
             // - Call Phase 1
             const phase1Resp = await log.infoSpan("Coarse Analysis (Phase 1)", this._callGemini({
                 parts: [
@@ -62,6 +71,9 @@ export class GeminiVTT {
                     {
                         fileData: {fileUri: gcsUri, mimeType: mime},
                         videoMetadata: {fps: 2}
+                    },
+                    {
+                        text: `CRITICAL: NEVER include timestamps longer than the actual video length (${videoDuration} seconds), this will cause a critical error`
                     }
                 ],
                 instructions: PHASE_1_INSTRUCTIONS_GPT,
@@ -114,7 +126,7 @@ export class GeminiVTT {
 
                 const phase2Resp = await log.infoSpan("Refined Analysis (Phase 2)", () => {
                     try {
-                        this._callGemini({
+                        return this._callGemini({
                             parts: [
                                 {
                                     text: "FULL_VIDEO_CONTEXT (may refer to parts you dont see in video form): " + (context || "No context provided")
@@ -122,16 +134,20 @@ export class GeminiVTT {
                                 {
                                     text: "COARSE_TRANSCRIPTION: " + JSON.stringify(phase1.transcription)
                                 },
-                                ...parts
+                                ...parts,
+                                {
+                                    text: `CRITICAL: NEVER include timestamps longer than the actual video length (${videoDuration} seconds), this will cause a critical error`
+                                }
                             ],
                             instructions: PHASE_2_INSTRUCTIONS_GPT,
-                            resolution: "MEDIUM"
+                            resolution: "LOW" // Temp on LOW
                         })
                     } catch (e) {
                         log.error("Error in Phase 2: " + JSON.stringify(e, null, 2));
                         throw e;
                     }
                 });
+
 
                 // Extract from phase 2 api response
                 phase2 = this._extractFromResp(phase2Resp);
@@ -146,10 +162,15 @@ export class GeminiVTT {
 
 
             return {finalPhase: finalPhase, phase1: phase1, phase2: phase2};
-        } catch (e) {
-            log.error("Error: " + JSON.stringify(e, null, 2));
-            log.info("Unhandled error in Gemini VTT calling again");
-            return this.transcribe(videoPath, opts);
+        } catch (err) {
+            log.error("Error: " + JSON.stringify(err, null, 2));
+            if (++this.recalls <= 3) {
+                log.error(`Unhandled error in Gemini VTT calling again (attempt ${this.recalls}/3)`);
+                return this.transcribe(videoPath, opts);
+            }
+            // Exceeded attempts
+            log.error(`Unhandled error in Gemini VTT, Exceeded attempt amount`);
+            throw err;
         }
     }
 
@@ -290,5 +311,14 @@ export class GeminiVTT {
             Invalid VTT schema: ${JSON.stringify(o.transcription, null, 2)}
             Schema Errors: ${JSON.stringify(validateVttSchema.errors, null, 2)}
             `);
+    }
+
+    _getVideoDuration(filePath) {
+        return new Promise((resolve, reject) => {
+            ffmpeg.ffprobe(filePath, (err, data) => {
+                if (err) return reject(err);
+                resolve(data.format.duration);
+            });
+        });
     }
 }
