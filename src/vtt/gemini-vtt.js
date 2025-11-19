@@ -71,12 +71,9 @@ export class GeminiVTT {
                     {
                         fileData: {fileUri: gcsUri, mimeType: mime},
                         videoMetadata: {fps: 2}
-                    },
-                    {
-                        text: `CRITICAL: NEVER include timestamps longer than the actual video length (${videoDuration} seconds), this will cause a critical error`
                     }
                 ],
-                instructions: PHASE_1_INSTRUCTIONS_GPT,
+                instructions: PHASE_1_INSTRUCTIONS_GPT(3, videoDuration),
                 resolution: "LOW"
             }));
             // -

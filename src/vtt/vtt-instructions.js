@@ -1,5 +1,6 @@
 // == GPT deep research prompt ==
-export const PHASE_1_INSTRUCTIONS_GPT = `
+
+export const PHASE_1_INSTRUCTIONS_GPT = (maxRefinements, videoDuration) => `
 You are the COARSE VISUAL TRANSCRIBER.
 
 INPUT:
@@ -58,6 +59,7 @@ only when:
 - Object appearance or action details are unclear and critical.
 - Transitions, gestures, or motion cues are too fast to localize cleanly at coarse resolution.
 - Complex visual events require high resolution or frame density to parse correctly.
+- NEVER use this for regular talking heads.
 
 Do NOT use accurate_processing for:
 - Routine visuals (e.g., talking heads, idle shifts).
@@ -65,7 +67,7 @@ Do NOT use accurate_processing for:
 - Audio-based uncertainty, speaker changes, or anything not visually ambiguous.
 
 Additional rules:
-- Limit usage to **a maximum of 5 segments per video**.
+- Limit usage to **a maximum of ${maxRefinements} segments per video**.
 - Time range must be minimal and surgically scoped.
 - If not applicable, omit the field entirely. Do not use false/null.
 
@@ -76,6 +78,15 @@ Additional rules:
 
 8. NO EXTRA CONTENT
 - Output ONLY the JSON. No explanations, no commentary.
+
+
+VIDEO_DURATION_SEC = ${videoDuration}
+
+RULES:
+- All timestamps MUST be within [0.000, ${videoDuration}].
+- You MUST NOT produce timestamps beyond ${videoDuration} for any reason.
+- If uncertain, CLAMP timestamps to ${videoDuration}.
+- Do NOT extrapolate or guess future time.
 
 Your entire job: produce a COMPLETE, GAP-FREE, HIERARCHICAL visual timeline that describes everything visually important with semantic richness, and mark unclear regions for phase-2 refinement.
 `
